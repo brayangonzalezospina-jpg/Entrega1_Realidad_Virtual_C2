@@ -2,57 +2,140 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Escena XR</title>
+<title>Escena XR Industrial</title>
 
+<!-- AFRAME -->
 <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+
+<!-- Movimiento VR -->
+<script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+
+<!-- Físicas y colisiones -->
+<script src="https://cdn.jsdelivr.net/npm/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
 
 </head>
 
 <body>
 
-<a-scene>
+<a-scene physics="gravity: -9.8">
+
+<!-- ================== -->
+<!-- ASSETS -->
+<!-- ================== -->
 
 <a-assets>
+
 <a-asset-item id="robot" src="models/industrial_robot_arm.glb"></a-asset-item>
 <a-asset-item id="drone" src="models/drone_futuriste.glb"></a-asset-item>
 <a-asset-item id="cnc" src="models/simple_rubber_conveyor.glb"></a-asset-item>
 <a-asset-item id="estella" src="models/cutter_machine.glb"></a-asset-item>
+
 </a-assets>
+
+
+<!-- ================== -->
+<!-- CIELO -->
+<!-- ================== -->
 
 <a-sky color="#ECECEC"></a-sky>
 
+
+<!-- ================== -->
+<!-- PISO (COLISIONABLE) -->
+<!-- ================== -->
+
 <a-plane
 rotation="-90 0 0"
-width="50"
-height="50"
-color="#7BC8A4">
+width="20"
+height="20"
+color="#7BC8A4"
+static-body>
 </a-plane>
+
+
+<!-- ================== -->
+<!-- ROBOT INDUSTRIAL -->
+<!-- ================== -->
 
 <a-entity
 gltf-model="#robot"
-position="10 0 -12"
-scale="0.15 0.15 0.15">
+position="3 0 -5"
+scale="0.05 0.05 0.05"
+static-body>
 </a-entity>
+
+
+<!-- ================== -->
+<!-- CINTA TRANSPORTADORA -->
+<!-- ================== -->
 
 <a-entity
 gltf-model="#cnc"
-position="10 0 10"
-scale="5 5 5">
+position="5 0 3"
+scale="0.5 0.5 0.5"
+static-body>
 </a-entity>
+
+
+<!-- ================== -->
+<!-- DRONE -->
+<!-- ================== -->
 
 <a-entity
 gltf-model="#drone"
-position="-10 5 8"
-scale="5 5 5">
+position="-4 2 2"
+scale="0.3 0.3 0.3"
+static-body>
 </a-entity>
+
+
+<!-- ================== -->
+<!-- MAQUINA CORTADORA -->
+<!-- ================== -->
 
 <a-entity
 gltf-model="#estella"
-position="-15 0 -8"
-scale="0.5 0.5 0.5">
+position="-5 0 -3"
+scale="0.2 0.2 0.2"
+static-body>
 </a-entity>
 
-<a-entity camera look-controls wasd-controls position="0 1.6 4"></a-entity>
+
+<!-- ================== -->
+<!-- RIG DEL JUGADOR -->
+<!-- ================== -->
+
+<a-entity id="rig" movement-controls="speed: 0.1">
+
+    <!-- cámara -->
+    <a-entity
+        camera
+        position="0 1.6 0"
+        look-controls>
+    </a-entity>
+
+    <!-- controlador izquierdo -->
+    <a-entity
+        oculus-touch-controls="hand: left">
+    </a-entity>
+
+    <!-- controlador derecho -->
+    <a-entity
+        oculus-touch-controls="hand: right">
+    </a-entity>
+
+</a-entity>
+
+
+<!-- ================== -->
+<!-- LIMITES DEL AREA -->
+<!-- ================== -->
+
+<a-box position="0 1 -10" depth="1" height="2" width="20" visible="false" static-body></a-box>
+<a-box position="0 1 10" depth="1" height="2" width="20" visible="false" static-body></a-box>
+<a-box position="10 1 0" depth="20" height="2" width="1" visible="false" static-body></a-box>
+<a-box position="-10 1 0" depth="20" height="2" width="1" visible="false" static-body></a-box>
+
 
 </a-scene>
 
