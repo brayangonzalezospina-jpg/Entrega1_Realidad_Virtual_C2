@@ -7,11 +7,14 @@
 <!-- AFRAME -->
 <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 
-<!-- Movimiento VR -->
+<!-- Movimiento -->
 <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
 
-<!-- Físicas y colisiones -->
+<!-- Físicas -->
 <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
+
+<!-- Animaciones GLTF -->
+<script src="https://cdn.jsdelivr.net/npm/aframe-animation-mixer@6.1.1/dist/aframe-animation-mixer.min.js"></script>
 
 </head>
 
@@ -26,8 +29,13 @@
 <a-assets>
 
 <a-asset-item id="robot" src="models/industrial_robot_arm.glb"></a-asset-item>
+
+<a-asset-item id="robotAnimado" src="models/robot_arm_animation.glb"></a-asset-item>
+
 <a-asset-item id="drone" src="models/drone_futuriste.glb"></a-asset-item>
+
 <a-asset-item id="cnc" src="models/simple_rubber_conveyor.glb"></a-asset-item>
+
 <a-asset-item id="estella" src="models/cutter_machine.glb"></a-asset-item>
 
 </a-assets>
@@ -41,13 +49,13 @@
 
 
 <!-- ================== -->
-<!-- PISO (COLISIONABLE) -->
+<!-- PISO -->
 <!-- ================== -->
 
 <a-plane
 rotation="-90 0 0"
-width="20"
-height="20"
+width="30"
+height="30"
 color="#7BC8A4"
 static-body>
 </a-plane>
@@ -59,9 +67,21 @@ static-body>
 
 <a-entity
 gltf-model="#robot"
+animation-mixer
 position="3 0 -5"
-scale="0.05 0.05 0.05"
-static-body>
+scale="0.05 0.05 0.05">
+</a-entity>
+
+
+<!-- ================== -->
+<!-- ROBOT ANIMADO -->
+<!-- ================== -->
+
+<a-entity
+gltf-model="#robotAnimado"
+animation-mixer
+position="0 0 -6"
+scale="0.05 0.05 0.05">
 </a-entity>
 
 
@@ -73,19 +93,27 @@ static-body>
 gltf-model="#cnc"
 position="5 0 3"
 scale="0.5 0.5 0.5"
-static-body>
+animation="property: position;
+           to: 5 0 2.5;
+           dir: alternate;
+           loop: true;
+           dur: 2000">
 </a-entity>
 
 
 <!-- ================== -->
-<!-- DRONE -->
+<!-- DRONE VOLADOR -->
 <!-- ================== -->
 
 <a-entity
 gltf-model="#drone"
 position="-4 2 2"
 scale="0.3 0.3 0.3"
-static-body>
+animation="property: position;
+           to: -4 3 2;
+           dir: alternate;
+           loop: true;
+           dur: 2000">
 </a-entity>
 
 
@@ -97,7 +125,11 @@ static-body>
 gltf-model="#estella"
 position="-5 0 -3"
 scale="0.2 0.2 0.2"
-static-body>
+animation="property: rotation;
+           to: 0 360 0;
+           loop: true;
+           dur: 8000;
+           easing: linear">
 </a-entity>
 
 
@@ -105,7 +137,7 @@ static-body>
 <!-- RIG DEL JUGADOR -->
 <!-- ================== -->
 
-<a-entity id="rig" movement-controls="speed: 0.1">
+<a-entity id="rig" movement-controls="speed: 0.15">
 
     <!-- cámara -->
     <a-entity
@@ -128,13 +160,26 @@ static-body>
 
 
 <!-- ================== -->
-<!-- LIMITES DEL AREA -->
+<!-- LIMITES -->
 <!-- ================== -->
 
-<a-box position="0 1 -10" depth="1" height="2" width="20" visible="false" static-body></a-box>
-<a-box position="0 1 10" depth="1" height="2" width="20" visible="false" static-body></a-box>
-<a-box position="10 1 0" depth="20" height="2" width="1" visible="false" static-body></a-box>
-<a-box position="-10 1 0" depth="20" height="2" width="1" visible="false" static-body></a-box>
+<a-box position="0 1 -12" depth="1" height="2" width="24" visible="false" static-body></a-box>
+<a-box position="0 1 12" depth="1" height="2" width="24" visible="false" static-body></a-box>
+<a-box position="12 1 0" depth="24" height="2" width="1" visible="false" static-body></a-box>
+<a-box position="-12 1 0" depth="24" height="2" width="1" visible="false" static-body></a-box>
+
+
+<!-- ================== -->
+<!-- LUCES -->
+<!-- ================== -->
+
+<a-light type="ambient" intensity="0.5"></a-light>
+
+<a-light
+type="directional"
+position="5 10 5"
+intensity="0.8">
+</a-light>
 
 
 </a-scene>
