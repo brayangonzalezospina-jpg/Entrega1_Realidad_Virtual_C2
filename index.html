@@ -1,188 +1,312 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-<meta charset="utf-8">
-<title>Escena XR Industrial</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Laboratorio XR Industrial - UMNG</title>
 
-<!-- AFRAME -->
-<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
 
-<!-- Movimiento -->
-<script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #000; }
 
-<!-- Físicas -->
-<script src="https://cdn.jsdelivr.net/npm/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
-
-<!-- Animaciones GLTF -->
-<script src="https://cdn.jsdelivr.net/npm/aframe-animation-mixer@6.1.1/dist/aframe-animation-mixer.min.js"></script>
-
+    #platform-badge {
+      position: fixed; top: 12px; right: 14px;
+      background: rgba(0,0,0,0.7); color: #00ff99;
+      font-family: monospace; font-size: 13px;
+      padding: 6px 16px; border-radius: 20px;
+      pointer-events: none; z-index: 999;
+    }
+    #fps-badge {
+      position: fixed; top: 12px; left: 14px;
+      background: rgba(0,0,0,0.7); color: #ffd166;
+      font-family: monospace; font-size: 13px;
+      padding: 6px 16px; border-radius: 20px;
+      pointer-events: none; z-index: 999;
+    }
+    #controls-hint {
+      position: fixed; bottom: 18px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7); color: #fff;
+      font-family: monospace; font-size: 13px;
+      padding: 9px 22px; border-radius: 30px;
+      pointer-events: none; z-index: 999;
+    }
+    #ar-button {
+      display: none; position: fixed;
+      bottom: 24px; left: 50%; transform: translateX(-50%);
+      z-index: 9999; padding: 13px 32px;
+      background: rgba(0,180,120,0.92); color: #fff;
+      font-family: monospace; font-size: 15px; font-weight: 700;
+      border: none; border-radius: 40px; cursor: pointer;
+    }
+  </style>
 </head>
-
 <body>
 
-<a-scene physics="gravity: -9.8">
+<div id="platform-badge">Detectando...</div>
+<div id="fps-badge">FPS: --</div>
+<div id="controls-hint">Click para capturar raton - WASD/Flechas mover - Q/E subir/bajar - ESC liberar</div>
+<button id="ar-button">Entrar en AR</button>
 
-<!-- ================== -->
-<!-- ASSETS -->
-<!-- ================== -->
+<script>
+  AFRAME.registerComponent('fps-counter', {
+    init: function () { this.frames = 0; this.elapsed = 0; },
+    tick: function (t, delta) {
+      this.frames++; this.elapsed += delta;
+      if (this.elapsed >= 1000) {
+        document.getElementById('fps-badge').textContent =
+          'FPS: ' + Math.round(this.frames / (this.elapsed / 1000));
+        this.frames = 0; this.elapsed = 0;
+      }
+    }
+  });
 
-<a-assets>
+  AFRAME.registerComponent('gltf-fallback', {
+    schema: { color: { default: '#888' } },
+    init: function () {
+      this.el.addEventListener('model-error', () => {
+        var box = document.createElement('a-box');
+        box.setAttribute('color', this.data.color);
+        box.setAttribute('scale', '1 1.5 1');
+        this.el.appendChild(box);
+      });
+    }
+  });
 
-<a-asset-item id="robot" src="models/industrial_robot_arm.glb"></a-asset-item>
+  AFRAME.registerComponent('simple-wasd', {
+    schema: { speed: { default: 4 } },
+    init: function () {
+      this.keys = {};
+      this._kd = (e) => { this.keys[e.code] = true; };
+      this._ku = (e) => { this.keys[e.code] = false; };
+      window.addEventListener('keydown', this._kd);
+      window.addEventListener('keyup', this._ku);
+    },
+    tick: function (t, delta) {
+      var k = this.keys;
+      var spd = this.data.speed * (delta / 1000);
+      var cam = this.el.querySelector('[camera]');
+      if (!cam) return;
+      var rot = cam.getAttribute('rotation') || { x: 0, y: 0, z: 0 };
+      var yaw = THREE.MathUtils.degToRad(rot.y);
+      var dx = 0, dz = 0, dy = 0;
+      if (k['KeyW']    || k['ArrowUp'])    { dz -= Math.cos(yaw); dx -= Math.sin(yaw); }
+      if (k['KeyS']    || k['ArrowDown'])  { dz += Math.cos(yaw); dx += Math.sin(yaw); }
+      if (k['KeyA']    || k['ArrowLeft'])  { dz += Math.sin(yaw); dx -= Math.cos(yaw); }
+      if (k['KeyD']    || k['ArrowRight']) { dz -= Math.sin(yaw); dx += Math.cos(yaw); }
+      if (k['KeyQ']    || k['PageUp'])     dy =  1;
+      if (k['KeyE']    || k['PageDown'])   dy = -1;
+      if (!dx && !dz && !dy) return;
+      var pos = this.el.getAttribute('position');
+      this.el.setAttribute('position', {
+        x: pos.x + dx * spd,
+        y: Math.max(0.2, pos.y + dy * spd),
+        z: pos.z + dz * spd
+      });
+    },
+    remove: function () {
+      window.removeEventListener('keydown', this._kd);
+      window.removeEventListener('keyup', this._ku);
+    }
+  });
+</script>
 
-<a-asset-item id="robotAnimado" src="models/robot_arm_animation.glb"></a-asset-item>
+<a-scene
+  fps-counter
+  webxr="optionalFeatures: hit-test, local-floor, bounded-floor, hand-tracking"
+  renderer="antialias: true; colorManagement: true"
+  vr-mode-ui="enabled: true"
+  loading-screen="dotsColor: #00ff99; backgroundColor: #111">
 
-<a-asset-item id="drone" src="models/drone_futuriste.glb"></a-asset-item>
+  <a-assets timeout="30000">
+    <a-asset-item id="robot"        src="models/industrial_robot_arm.glb"></a-asset-item>
+    <a-asset-item id="robotAnimado" src="models/robot_arm_animation.glb"></a-asset-item>
+    <a-asset-item id="drone"        src="models/drone_futuriste.glb"></a-asset-item>
+  </a-assets>
 
-<a-asset-item id="cnc" src="models/simple_rubber_conveyor.glb"></a-asset-item>
+  <!-- ENTORNO -->
+  <a-sky color="#b8d8e8"></a-sky>
 
-<a-asset-item id="estella" src="models/cutter_machine.glb"></a-asset-item>
+  <a-plane rotation="-90 0 0" width="40" height="40"
+    color="#2c2c2c" material="roughness: 0.85">
+  </a-plane>
 
-</a-assets>
+  <a-entity
+    geometry="primitive: plane; width: 40; height: 40"
+    material="color: #555; wireframe: true; opacity: 0.2"
+    rotation="-90 0 0" position="0 0.005 0">
+  </a-entity>
 
+  <!-- Paredes del taller -->
+  <a-plane position="0 3 -15"  width="40" height="6" color="#3a3a3a" material="roughness:0.9"></a-plane>
+  <a-plane position="0 3  15"  width="40" height="6" color="#3a3a3a" rotation="0 180 0" material="roughness:0.9"></a-plane>
+  <a-plane position="-15 3 0"  width="40" height="6" color="#333" rotation="0 90 0" material="roughness:0.9"></a-plane>
+  <a-plane position=" 15 3 0"  width="40" height="6" color="#333" rotation="0 -90 0" material="roughness:0.9"></a-plane>
 
-<!-- ================== -->
-<!-- CIELO -->
-<!-- ================== -->
+  <!-- ==================================================
+       FASE 2 - Primitivas
+       Plataformas individuales para cada robot
+       Robot 1 en X=-6, Robot 2 en X=+6 (10 unidades de separacion)
+  ================================================== -->
 
-<a-sky color="#ECECEC"></a-sky>
+  <!-- Plataforma robot 1 izquierda -->
+  <a-box position="-6 0.15 0" width="2.2" height="0.3" depth="2.2" color="#3a3a3a"></a-box>
 
+  <!-- Plataforma robot 2 derecha -->
+  <a-box position="6 0.15 0" width="2.2" height="0.3" depth="2.2" color="#3a3a3a"></a-box>
 
-<!-- ================== -->
-<!-- PISO -->
-<!-- ================== -->
+  <!-- Sensor robot 1 - verde OK -->
+  <a-sphere position="-6 3.2 0" radius="0.13"
+    color="#00ff99" emissive="#00ff99" emissive-intensity="0.7"
+    animation="property: material.opacity; from: 1; to: 0.15; dir: alternate; loop: true; dur: 900">
+  </a-sphere>
 
-<a-plane
-rotation="-90 0 0"
-width="30"
-height="30"
-color="#7BC8A4"
-static-body>
-</a-plane>
+  <!-- Sensor robot 2 - amarillo alerta -->
+  <a-sphere position="6 3.2 0" radius="0.13"
+    color="#ffd166" emissive="#ffd166" emissive-intensity="0.7"
+    animation="property: material.opacity; from: 1; to: 0.15; dir: alternate; loop: true; dur: 650">
+  </a-sphere>
 
+  <!-- Panel de control al fondo centrado -->
+  <a-box position="0 1.1 -8" width="2.4" height="1.5" depth="0.2" color="#1a1a1a"></a-box>
+  <a-plane position="0 1.1 -7.89" width="2.0" height="1.1" color="#0d2137" material="roughness: 0.4"></a-plane>
+  <a-plane position="0 1.35 -7.88" width="1.7" height="0.5" color="#0a3a5c" material="roughness: 0.3"></a-plane>
+  <a-box position="-0.5 0.72 -7.88" width="0.25" height="0.25" depth="0.08" color="#00ff99"></a-box>
+  <a-box position=" 0.0 0.72 -7.88" width="0.25" height="0.25" depth="0.08" color="#ffd166"></a-box>
+  <a-box position=" 0.5 0.72 -7.88" width="0.25" height="0.25" depth="0.08" color="#ef233c"></a-box>
 
-<!-- ================== -->
-<!-- ROBOT INDUSTRIAL -->
-<!-- ================== -->
+  <!-- ==================================================
+       FASE 3 - Modelos CAD (GLB)
+       Robot 1 en X=-6, Robot 2 en X=+6
+  ================================================== -->
 
-<a-entity
-gltf-model="#robot"
-animation-mixer
-position="3 0 -5"
-scale="0.05 0.05 0.05">
-</a-entity>
+  <!-- ROBOT 1 -->
+  <a-entity
+    gltf-model="#robot"
+    gltf-fallback="color: #1a6fb5"
+    animation-mixer="clip: *; loop: repeat; crossFadeDuration: 0.3"
+    position="-6 0 0"
+    scale="0.05 0.05 0.05">
+  </a-entity>
 
+  <!-- ROBOT 2 -->
+  <a-cylinder position="6 0.45 0" radius="0.42" height="0.6" color="#111"></a-cylinder>
+  <a-entity
+    gltf-model="#robotAnimado"
+    gltf-fallback="color: #e85d04"
+    animation-mixer="clip: *; loop: repeat; crossFadeDuration: 0.3"
+    position="6 0.75 0"
+    scale="0.05 0.05 0.05">
+  </a-entity>
 
-<!-- ================== -->
-<!-- ROBOT ANIMADO -->
-<!-- ================== -->
+  <!-- ==================================================
+       DRONE - orbita circular real
+       Tecnica: pivot vacio en el centro que rota 360
+       El drone esta desplazado 5u del pivot en X
+       Eso crea un circulo de radio 5 a altura 6u
+       Radio 5 garantiza que no se choca con ningun robot
+       (robots en X=-6 y X=+6, el torus pasa por X=-5 y X=+5)
+  ================================================== -->
 
-<a-entity
-gltf-model="#robotAnimado"
-animation-mixer
-position="0 0 6"
-scale="0.05 0.05 0.05">
-</a-entity>
+  <a-entity
+    id="drone-pivot"
+    position="0 6 0"
+    animation="property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: 10000; easing: linear">
 
-
-<!-- ================== -->
-<!-- CINTA TRANSPORTADORA -->
-<!-- ================== -->
-
-<a-entity
-gltf-model="#cnc"
-position="5 0 3"
-scale="0.5 0.5 0.5"
-animation="property: position;
-           to: 5 0 2.5;
-           dir: alternate;
-           loop: true;
-           dur: 2000">
-</a-entity>
-
-
-<!-- ================== -->
-<!-- DRONE VOLADOR -->
-<!-- ================== -->
-
-<a-entity
-gltf-model="#drone"
-position="-4 2 2"
-scale="0.3 0.3 0.3"
-animation="property: position;
-           to: -4 3 2;
-           dir: alternate;
-           loop: true;
-           dur: 2000">
-</a-entity>
-
-
-<!-- ================== -->
-<!-- MAQUINA CORTADORA -->
-<!-- ================== -->
-
-<a-entity
-gltf-model="#estella"
-position="-5 0 -3"
-scale="0.2 0.2 0.2"
-animation="property: rotation;
-           to: 0 360 0;
-           loop: true;
-           dur: 8000;
-           easing: linear">
-</a-entity>
-
-
-<!-- ================== -->
-<!-- RIG DEL JUGADOR -->
-<!-- ================== -->
-
-<a-entity id="rig" movement-controls="speed: 0.15">
-
-    <!-- cámara -->
     <a-entity
-        camera
-        position="0 1.6 0"
-        look-controls>
+      gltf-model="#drone"
+      gltf-fallback="color: #264653"
+      position="5 0 0"
+      scale="1.5 1.5 1.5"
+      animation="property: position; from: 5 0 0; to: 5 0.5 0; dir: alternate; loop: true; dur: 1800; easing: easeInOutSine">
     </a-entity>
 
-    <!-- controlador izquierdo -->
+  </a-entity>
+
+  <!-- Anillo visual de la orbita -->
+  <a-torus
+    position="0 6 0"
+    radius="5" radius-tubular="0.035"
+    rotation="90 0 0"
+    color="#00ff99"
+    material="opacity: 0.22; transparent: true">
+  </a-torus>
+
+  <!-- ILUMINACION -->
+  <a-light type="ambient"     color="#fff8e7" intensity="0.5"></a-light>
+  <a-light type="directional" color="#fff5cc" intensity="0.9"  position="8 15 5"></a-light>
+  <a-light type="directional" color="#c9e8ff" intensity="0.35" position="-8 8 -5"></a-light>
+  <a-light type="point" color="#4fc3f7" intensity="0.8" distance="6" position="-6 4 0"></a-light>
+  <a-light type="point" color="#80d8ff" intensity="0.7" distance="6" position=" 6 4 0"></a-light>
+  <a-light type="point" color="#00ff99" intensity="0.5" distance="9" position="0 7 0"></a-light>
+
+  <!-- ==================================================
+       RIG DEL USUARIO - multiplataforma
+       Desktop   : raton capturado + WASD
+       Smartphone: giroscopio IMU automatico
+       VR movil  : boton Enter VR de A-Frame
+       AR movil  : boton "Entrar en AR" (WebXR)
+       Meta Quest: oculus-touch + laser-controls
+  ================================================== -->
+  <a-entity id="rig" position="0 0 10" simple-wasd="speed: 4">
+
     <a-entity
-        oculus-touch-controls="hand: left">
+      id="camera"
+      camera="fov: 75; near: 0.05"
+      position="0 1.6 0"
+      look-controls="pointerLockEnabled: true; magicWindowTrackingEnabled: true; touchEnabled: true">
+
+      <a-cursor
+        color="#00ff99"
+        fuse="false"
+        geometry="primitive: ring; radiusInner: 0.012; radiusOuter: 0.018"
+        material="color: #00ff99; shader: flat; opacity: 0.85"
+        raycaster="far: 30">
+      </a-cursor>
+
     </a-entity>
 
-    <!-- controlador derecho -->
-    <a-entity
-        oculus-touch-controls="hand: right">
-    </a-entity>
+    <a-entity oculus-touch-controls="hand: left"  laser-controls="hand: left"></a-entity>
+    <a-entity oculus-touch-controls="hand: right" laser-controls="hand: right"></a-entity>
 
-</a-entity>
-
-
-<!-- ================== -->
-<!-- LIMITES -->
-<!-- ================== -->
-
-<a-box position="0 1 -12" depth="1" height="2" width="24" visible="false" static-body></a-box>
-<a-box position="0 1 12" depth="1" height="2" width="24" visible="false" static-body></a-box>
-<a-box position="12 1 0" depth="24" height="2" width="1" visible="false" static-body></a-box>
-<a-box position="-12 1 0" depth="24" height="2" width="1" visible="false" static-body></a-box>
-
-
-<!-- ================== -->
-<!-- LUCES -->
-<!-- ================== -->
-
-<a-light type="ambient" intensity="0.5"></a-light>
-
-<a-light
-type="directional"
-position="5 10 5"
-intensity="0.8">
-</a-light>
-
+  </a-entity>
 
 </a-scene>
+
+<script>
+  var ua   = navigator.userAgent;
+  var isM  = /Android|iPhone|iPad|iPod/i.test(ua);
+  var isQ  = /OculusBrowser|Quest/i.test(ua);
+  var plat = isQ ? 'Meta Quest 3' : isM ? 'Smartphone' : 'PC Desktop';
+  document.getElementById('platform-badge').textContent = plat;
+
+  if (isM || isQ) document.getElementById('controls-hint').style.display = 'none';
+
+  if (isM && !isQ) {
+    document.getElementById('camera').setAttribute(
+      'look-controls',
+      'pointerLockEnabled: false; magicWindowTrackingEnabled: true; touchEnabled: true'
+    );
+    document.getElementById('rig').removeAttribute('simple-wasd');
+  }
+
+  var scene = document.querySelector('a-scene');
+  scene.addEventListener('loaded', function () {
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported('immersive-ar').then(function (ok) {
+        if (!ok) return;
+        var btn = document.getElementById('ar-button');
+        btn.style.display = 'block';
+        btn.onclick = function () { scene.enterAR(); };
+      });
+    }
+  });
+</script>
 
 </body>
 </html>
